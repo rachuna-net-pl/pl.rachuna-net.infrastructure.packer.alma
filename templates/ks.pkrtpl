@@ -1,0 +1,42 @@
+# System authorization information
+lang ${locale}
+keyboard --xlayouts=${keyboard_layout}
+timezone ${timezone} --utc
+authconfig --enableshadow --passalgo=sha512
+
+url --url="http://repo.almalinux.org/almalinux/9/BaseOS/x86_64/os/"
+
+repo --name="appstream" --mirrorlist="https://mirrors.almalinux.org/mirrorlist/9/appstream"
+
+authselect select sssd --force
+rootpw --plaintext ${root_password}
+user --name=${ssh_username} --password=${ssh_password} --groups=wheel --shell=/bin/bash
+firewall --enabled --service=ssh
+selinux --enforcing
+services --enabled=sshd
+network --bootproto=dhcp --device=link --onboot=on --hostname=alma-server
+
+zerombr
+clearpart --all --initlabel
+autopart --type=plain
+
+%packages
+@core
+chrony
+qemu-guest-agent
+sudo
+%end
+
+%post
+systemctl enable qemu-guest-agent
+systemctl enable sshd
+echo '${ssh_username} ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/${ssh_username}
+chmod 0440 /etc/sudoers.d/${ssh_username}
+
+# Włącz logowanie hasłem po SSH
+sed -i 's/^#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config
+sed -i 's/^PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config
+systemctl restart sshd
+%end
+
+reboot
